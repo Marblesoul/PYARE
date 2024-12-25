@@ -1,19 +1,23 @@
 import csv
 import os
 import re
-from pprint import pprint
 
 with open(os.path.join(os.path.dirname(__file__), 'phonebook_raw.csv'), encoding='utf-8') as f:
     rows = csv.reader(f, delimiter=",")
     headers = next(rows)
-    pprint(headers)
     contacts_list = list(rows)
-
 
 def normalize_fullname(contacts: list):
     for contact in contacts:
-        user_main_data = " ".join(contact[0:2]).strip().split(" ")
-        contact[:2] = user_main_data
+        user_main_data = ' '.join(contact[:3]).strip().split(' ')
+        if len(user_main_data) > 3:
+            for i in user_main_data:
+                if not i.isalpha():
+                    user_main_data.remove(i)
+        elif len(user_main_data) < 3:
+            contact[:2] = user_main_data
+        else:
+            contact[:3] = user_main_data
 
 
 def normalize_phone_number(contacts: list):
@@ -28,15 +32,29 @@ def normalize_phone_number(contacts: list):
             if extra:
                 match = re.search(pattern, phone_number)
                 contact[5] = f'+7({match.group(1)}){match.group(2)}{match.group(3)}{match.group(4)} доб.{extra.group(1)}'
+    return contacts
 
 
+def group_contacts(contacts: list):
+    result = {}
+    for contact in contacts:
+        key = tuple(contact[0:2])
+        if key not in result:
+            result[key] = contact
+        else:
+            result[key] = [
+                result[key][i] or contact[i] for i in range(len(contact))
+            ]
+    return list(result.values())
+
+normalize_fullname(contacts_list)
+normalize_phone_number(contacts_list)
 
 if __name__ == '__main__':
-    normalize_fullname(contacts_list)
-    normalize_phone_number(contacts_list)
-    pprint(contacts_list)
-
-    # with open(os.path.join(os.path.dirname(__file__), 'phonebook.csv'), 'w', encoding='utf-8') as f:
-    #     datawriter = csv.writer(f, delimiter=',')
-    #     datawriter.writerow(headers)
-    #     datawriter.writerows(contacts_list)
+    with open(os.path.join(os.path.dirname(__file__), 'phonebook.csv'), 'w', encoding='utf-8', newline='') as f:
+        datawriter = csv.writer(f, delimiter=',')
+        datawriter.writerow(headers)
+        normalize_fullname(contacts_list)
+        normalize_phone_number(contacts_list)
+        datawriter.writerows(group_contacts(contacts_list))
+        print('Done!')
